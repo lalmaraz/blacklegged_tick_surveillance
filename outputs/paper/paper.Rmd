@@ -1,0 +1,258 @@
+---
+title: "Highest Concentration of Lyme Disease-Causing Bacteria Found in Blacklegged Ticks in East Toronto Parks"
+author: "Lorena Almaraz De La Garza"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  bookdown::pdf_document2: default
+subtitle: "with data from Open Data Toronto, 2013-2019"
+toc: FALSE
+thanks: 'Code and data are available in this GitHub repository: [lalmaraz/blacklegged_tick_surveillance] (https://github.com/lalmaraz/blacklegged_tick_surveillance).'
+bibliography: references.bib
+abstract: Blacklegged ticks are the primary vector of Lyme disease in North America, carrying the bacteria responsible, Borrelia burgdorferi. The City of Toronto has actively monitored the presence of ticks and bacterial tests since 2013. This paper uses Toronto Open Data to map the locations with highest incidence of positive tests. Based on the results, the parks where the most total ticks have been collected are in the east end of the city. Rouge Park has the highest number of positive bacterial tests over all.
+---
+
+# Introduction
+
+Since 2013, the City of Toronto has conducted blacklegged tick surveillance and bacterial testing to determine the overall risk of Lyme disease in the city. The blacklegged tick (Ixodes scapularis), also known as deer tick, is the main vector of Lyme disease in North America, carrying the bacteria responsible for Lyme, Borrelia burgdorferi [@vector]. The disease causes mild to severe symptoms, ranging from headaches and joint aches, to heart-related and neurological disorders [@symptoms]. As blacklegged ticks spread across Ontario, a thorough understanding of the presence of bacteria-carrying ticks is imperative.
+
+Using information from the Toronto Open Data initiative and using R [@R], this paper compiles the efforts the city has taken to understand the scope of blacklegged tick populations. The following pages present an overview of the data as collected by Toronto Public Health over the years. The analysis includes a map of the distribution of positive bacterial tests, a closer look at the locations with highest incidences, and a yearly comparison – all possible to an array of dedicated R packages, including `tidyverse` [@tidyverse] and `opendatatoronto` [@odt]. As the data shows, the parks with the highest number of ticks carrying B. burgdorferi are in Scarborough, the city’s east end. The highest incidence is found in five parks in particular: Colonel Danforth Trail, Morningside Park, Rouge Park, Rouge Park: Glen Eagle Vista Trail, and Upper Rouge Trail Park. The paper concludes with a discussion, an analysis of limitations, and suggestions for further research. Additional information is included in the appendices. The `here` package [@here] and other measures are implemented to ensure full reproducibility.
+
+
+```{r libs, include = FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+# Load libraries
+library(bookdown) #citation missing
+library(ggmap)
+library(gt)
+library(here)
+library(janitor)
+library(kableExtra)
+library(knitr) #citation missing
+library(opendatatoronto)
+library(tidyverse)
+
+# Find and get data
+raw_data <- search_packages("tick surveillance") %>% 
+  list_package_resources() %>% 
+  get_resource()
+
+# Save data
+write_csv(raw_data,"inputs/data/raw_data.csv")
+
+# Read in data
+all_data <- read_csv("inputs/data/raw_data.csv")
+
+# Clean data
+all_years <- all_data %>% 
+  clean_names() %>% 
+  rename(park = park_location,
+         total = total_bl_ts,
+         larvae = blt_larvae,
+         adults = blt_adults_and_nymphs,
+         positive = number_positive)
+
+# Expand to include 'negative' results
+expanded_data <- add_column(all_years,
+                                negative = all_years$total - all_years$positive)
+
+# Save data
+write_csv(expanded_data,"outputs/data/expanded_data.csv")
+```
+
+# Data
+The dataset used in this paper is publicly available through the Open Data Portal hosted by City of Toronto, accesses here through the `opendatatoronto` package [@odt]. It is published and refreshed semi-annually by Toronto Public Health (TPH) and is listed in the catalogue as “Blacklegged Tick Surveillance”. The tick surveillance program, as the catalogue states, monitors the number of blacklegged ticks, their locations, and the number of them that carry Borrelia burgodorferi, the bacteria that causes Lyme disease. The city has collected these data since 2013 [@db]. 
+
+As part of the program, Toronto Public Health conducts a process known as tick dragging. The agency explains: 
+
+
+>“Tick dragging is a process of collecting ticks in the environment and is done in the spring and fall when adult ticks are active. Dragging locations are selected based on suitable blacklegged tick habitat or a previous confirmed finding of a blacklegged tick. Blacklegged ticks may still be present in very low numbers at a site where none were found by tick dragging efforts. … As tick populations are expanding, it is possible that blacklegged ticks could be present outside the areas identified by Toronto Public Health. In addition, ticks can travel or migrate on the bodies of animals such as birds and therefore can be present in an area for a year in very low numbers and then disappear. The ticks are sent to the National Microbiology Laboratory in Winnipeg for confirmation of species and testing of adults and nymphs for Borrelia burgdorferi.” [@db]
+
+
+This paper focuses on the four main variables in the dataset: park location, total blacklegged ticks collected, number of positive bacterial tests, and year. These are coded in the dataset as “Park Location”, “Total BLTs”, “# Positive”, “Year”, and renamed for ease of use with the `janitor` package [@janitor] Additionally, longitude and latitude details are used to ensure consistency in park locations over the years and for creating map graphs. For the purpose of this paper, I omit two variables that refer to the stage in the lifecycle of the ticks, “BLT Larvae” and “BLT Adults and Nymphs”, as the cumulative count is represented in “Total BLTs”. To visualize the proportion of positive bacterial tests within the total count, I created an additional variable that contains negative tests results by subtracting positive tests from the total per park per year. 
+
+Between 2013 and 2019, the agency collected almost 500 ticks across the city. Close to a third tested positive for Borrelia burgodorferi. A summary of all the studies TPH conducted is represented in Table X (TABLE, ALL), created using the `gt` package [@gt]. It is important to note that while 191 studies have been conducted in parks, there are only 81 unique locations, see [Appendix 1](#appendix1) for a list. 
+
+
+
+```{r tableone, message=FALSE, warning=FALSE, echo=FALSE}
+# Make a table
+totals_table_data <- expanded_data %>%
+  select(park, positive, total, year) %>% 
+  group_by(year) %>% 
+  summarise(park = length(park),
+            total = sum(total),
+            positive = sum(positive))
+
+totals_table_data <- totals_table_data %>% 
+  add_row(year=length(totals_table_data$year),
+          park = sum(totals_table_data$park),
+          total = sum(totals_table_data$total),
+          positive= sum(totals_table_data$positive)) # Add row of totals
+
+ totals_table <-totals_table_data %>% 
+   gt() %>% 
+  cols_label(
+    park = "Parks Surveilled",
+    total = "Total Ticks Collected",
+    positive = "Positive Bacterial Tests",
+    year = "Year") %>%
+  tab_header(title = "2013-2019 Cumulative Results",
+    subtitle = "Blacklegged Tick Surveillance in Toronto Parks")
+ 
+totals_table
+```
+
+In 2013, TPH conducted the study in only one park, Algonquin Island, where they found a sole tick which tested negative to the bacterial test. In 2014, the agency collected samples in three additional parks: Danforth Birchmount Parkette, Wards Island, and Rouge Park, finding three ticks in the latter. All tested negative. Table 2 (TABLE, EARLY TICKS) contains all results from the first two years of the program. 
+
+
+
+```{r tabletwo, message=FALSE, warning=FALSE, echo=FALSE}
+# Make a second table
+early_ticks_table <- expanded_data %>%
+  filter(year < 2015) %>% 
+  select(park, total, positive, year) %>% 
+  group_by(year) %>% 
+  gt() %>%
+  cols_label(
+    park = " ",
+    total = "Total Ticks Collected",
+    positive = "Positive Bacterial Tests",
+    year = "Year") %>%
+  tab_header(
+    title = "2014 & 2014 Results",
+    subtitle = "Blacklegged Tick Surveillance in Toronto Parks")
+early_ticks_table
+```
+
+Efforts began more consistently in 2015, studying an average of 37 parks per year. The cumulative total of ticks found and positive tests between 2015 and 2019 is represented in Figure \@ref(fig:mapone), rendered with the `ggmap` [@ggmap] and `ggplot2` [@ggplot2] packages, with information from Stamen Design and OpenStreetMap [-@stamen].
+
+
+
+```{r mapone, echo=FALSE, fig.cap="Map of park locations studied between 2015 and 2019 indicating total of ticks collected and number of positive bacterial tests.", message=FALSE, warning=FALSE}
+# Make a map. All parks since 2015, includes positive tests and total tick count
+# code from: https://www.r-bloggers.com/2018/10/getting-started-stamen-maps-with-ggmap/
+after_2015 <- expanded_data %>% 
+  filter(year >= 2015)
+
+all_parks <- after_2015 %>% 
+  group_by(park) %>% 
+  summarise(total = sum(total),
+            longitude = mean(longitude),
+            latitude = mean(latitude),
+            positive = sum(positive), 
+            year = year)
+
+height <- max(expanded_data$latitude) - min(expanded_data$latitude)
+width <- max(expanded_data$longitude) - min(expanded_data$longitude)
+sac_borders <- c(bottom  = min(expanded_data$latitude)  - 0.1 * height, 
+                 top     = max(expanded_data$latitude)  + 0.1 * height,
+                 left    = min(expanded_data$longitude) - 0.1 * width,
+                 right   = max(expanded_data$longitude) + 0.1 * width)
+map <- get_stamenmap(sac_borders, zoom = 10, maptype = "terrain")
+
+ggmap(map)+
+  geom_point(data = all_parks, aes(x = longitude, y = latitude, size = total, colour = positive)) +
+    scale_colour_gradient2(low = "#19c07d", mid = "#ffd479", high = "#f6766d", midpoint = 50)+
+  labs(x = " ", y = "  ", color = "Positive Tests", size = "Total Ticks",
+       title = "Total Ticks Found and Positive Bacterial Tests", subtitle = "2015-2019")+
+  guides(size = guide_legend(reverse=TRUE))+
+  theme(plot.title=element_text(family="Times"), plot.subtitle=element_text(family="Times"))
+```
+
+Out of 81 unique locations, TPH found ticks in X of them (with X reporting only a single tick) and only 8 locations have had cases of positive bacterial tests. 
+
+As Figure \@ref(fig:mapone) shows, the parks with highest concentrations of ticks are located in Scarborough, the east end of the city. Out of 206 ticks collected in Rouge Park alone, a hundred tested positive for Borrelia burgodorferi between 2015 and 2019.
+
+
+
+```{r}
+
+```
+
+
+Figure \@ref(fig:maptwo) shows a closer look at the area, identifying the five parks with the highest number of positive cases in the city.
+
+
+```{r maptwo, fig.cap="Map of the five parks with the highest number of positive bacterial tests.",echo=FALSE, message=FALSE, warning=FALSE}
+# Make another map. Top 5 parks with most positive tests
+# code from: https://www.r-bloggers.com/2018/10/getting-started-stamen-maps-with-ggmap/
+highest_parks <- all_parks %>% 
+  filter(row_number()==1) %>% # one instance per park
+  arrange(desc(positive)) %>% 
+  head(5) # top five parks
+
+height <- max(highest_parks$latitude) - min(highest_parks$latitude)
+width <- max(highest_parks$longitude) - min(highest_parks$longitude)
+sac_borders <- c(bottom  = min(highest_parks$latitude)  - 1.5 * height, 
+                 top     = max(highest_parks$latitude)  + 1.5 * height,
+                 left    = min(highest_parks$longitude) - 3 * width,
+                 right   = max(highest_parks$longitude) + 3 * width)
+map <- get_stamenmap(sac_borders, zoom = 10, maptype = "terrain")
+
+highest_parks_map <- ggmap(map)+
+  geom_point(data = highest_parks, aes(x = longitude, y = latitude, color = park, size = positive))+
+  labs(x = " ", y = "  ", color = "Park", size = "Positive Tests",
+       title = "Parks With Highest Positive Bacterial Tests", subtitle = "2015-2019")+
+  guides(size = guide_legend(reverse=TRUE))+
+  theme(plot.title=element_text(family="Times"), plot.subtitle=element_text(family="Times"))
+
+highest_parks_map
+```
+
+
+In order to better understand the presence of ticks in these parks over the years, Figure \@ref(fig:plotone) shows the proportion of test results side by side. I manually selected these parks to generate this graph because unfortunately, not all of these locations were studied consistently between 2015 and 2019. Sections with missing bars, like Rouge Park in 2019 for example, indicate missing data. However, the existing data does indicate that for three consecutive years Rouge Park reported the highest number of ticks, with slightly more than half testing positive (63 out of 122) in 2017.
+
+
+```{r plotone, fig.cap="Graph of bacterial test results at the parks with highest tick numbers over the years.", echo=FALSE, message=FALSE, warning=FALSE}
+# Make a plot! Total ticks per park per year
+positive_df <- select(expanded_data, park, positive, year) %>% 
+  add_column(result = "Positive") %>% 
+  rename(count = positive)
+
+negative_df <- select(expanded_data, park, negative, year) %>% 
+  add_column(result = "Negative") %>% 
+  rename(count = negative)
+
+results_df <- rbind(positive_df, negative_df)
+
+yearly_tests <- results_df %>% 
+  filter(year != 2013) %>% 
+  filter(year != 2014) %>% # excluding the years captured in Table 2
+  filter(grepl("Colonel Danforth Trail|Morningside Park|Rouge Park|Rouge Park: Glen Eagle Vista Trail|Upper Rouge Trail Park", park)) #syntax from: https://www.tutorialspoint.com/how-to-filter-rows-that-contain-a-certain-string-in-r
+
+ggplot(data=yearly_tests, aes(x=park, y=count, fill=result)) + 
+  geom_bar(stat="identity", position = position_stack(reverse = TRUE))+ 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8)) +
+  scale_fill_manual(values = c("#19c07d", "#f6766d")) + 
+  labs(x = "", y = "Ticks Found", fill = "Bacterial Test",
+       title = "Yearly Bacterial Tests", subtitle = "2015-2019")+ 
+  guides(fill = guide_legend(reverse=TRUE))+
+  facet_wrap(~year, ncol=5)+
+  theme(plot.title=element_text(family="Times"), plot.subtitle=element_text(family="Times"))
+```
+
+
+# Discussion 
+As the previous pages describe, the highest number of blacklegged ticks is found in the city’s east end, at five parks in particular. From the years studied, the largest number of ticks and positive bacterial tests happened in 2017. 
+
+## Limitations
+The process of tick dragging presents some initial limitations. As described by Public Health Ontario in the Active Tick Dragging: Standard Operating Procedure manual [-@pho], active tick dragging consists of a person dragging a large piece of white cloth across the terrain for a minimum of three hours, walking at a moderate pace. The collector’s clothing and cloth should be inspected every “40 to 50 paces” [@pho, Methods] for ticks. Ticks are then properly stored and shipped to the National Microbiology Laboratory in Winnipeg. It is not hard to imagine how this process might present significant inconsistencies depending on the individual collector, location, and year.
+
+More important, due to the location selection process, not all parks are dragged every spring or fall which limits the ability to study trends over time. For example, the Danforth birch mount parkette was only studied in 2014. Rouge Park, a site with high number of positive tests was studied from 2014 to 2018. In 2018 and 2019, a secondary location in the area, Upper Rouge Trail Park, was studied. Finally, in 2019, a third location, Rouge Park: Glen Eagle Vista Trail, was studied. Due to the prevalence of blacklegged ticks carrying Borrelia burgdorferi in the area, it seems like systematic approach would be beneficial. 
+
+## Next Steps 
+It is crucial to understand the spread of blacklegged ticks in the city and how this might be related to overarching environmental factors. The “Blacklegged Tick Surveillance” dataset is catalogued under the civic issue of climate change in the Open Data Portal [@db]. A quick look at historical data indicated that, compared to 2016 and 2018, spring 2017 had slightly higher average temperatures [@weather]. A thorough investigation of the impact to blacklegged tick lifecycles of a changing climate is necessary.
+
+Additionally, as Lyme and associated diseases continued to be studied, it should be an absolute priority to understand how the social determinants of health of the population in at risk areas might exacerbate negative consequences [@health]. 
+
+\newpage
+# Appendix 1 {#appendix1}
+Parks studied between 2013 and 2019.
+```{r uniqueparks, echo=FALSE, message=FALSE, warning=FALSE}
+# Parks surveilled per year
+total_parks <- (unique(expanded_data$park))
+total_parks
+```
+
+\newpage
+# References
