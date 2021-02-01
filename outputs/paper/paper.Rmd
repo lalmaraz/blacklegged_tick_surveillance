@@ -69,11 +69,11 @@ As part of the program, Toronto Public Health conducts a process known as tick d
 
 This paper focuses on the four main variables in the dataset: park location, total blacklegged ticks collected, number of positive bacterial tests, and year. These are coded in the dataset as “Park Location”, “Total BLTs”, “# Positive”, “Year”, and renamed for ease of use with the `janitor` package [@janitor] Additionally, longitude and latitude details are used to ensure consistency in park locations over the years and for creating map graphs. For the purpose of this paper, I omit two variables that refer to the stage in the lifecycle of the ticks, “BLT Larvae” and “BLT Adults and Nymphs”, as the cumulative count is represented in “Total BLTs”. To visualize the proportion of positive bacterial tests within the total count, I created an additional variable that contains negative tests results by subtracting positive tests from the total per park per year. 
 
-Between 2013 and 2019, the agency collected almost 500 ticks across the city. Close to a third tested positive for Borrelia burgodorferi. A summary of all the studies TPH conducted is represented in Table X (TABLE, ALL), created using the `gt` package [@gt]. It is important to note that while 191 studies have been conducted in parks, there are only 81 unique locations, see [Appendix 1](#appendix1) for a list. 
+Between 2013 and 2019, the agency collected almost 500 ticks across the city. Close to a third tested positive for Borrelia burgodorferi. A summary of all the studies TPH conducted is represented in Table \@ref(tab:tableone) , created using the `gt` package [@gt]. It is important to note that while 191 studies have been conducted in parks, there are only 81 unique locations, see [Appendix 1](#appendix1) for a list. 
 
 
 
-```{r tableone, message=FALSE, warning=FALSE, echo=FALSE}
+```{r tableone, tab.cap="Table summary of blacklegged tick surveillance efforts from 2013 to 2019.", message=FALSE, warning=FALSE, echo=FALSE}
 # Make a table
 totals_table_data <- expanded_data %>%
   select(park, positive, total, year) %>% 
@@ -101,11 +101,11 @@ totals_table_data <- totals_table_data %>%
 totals_table
 ```
 
-In 2013, TPH conducted the study in only one park, Algonquin Island, where they found a sole tick which tested negative to the bacterial test. In 2014, the agency collected samples in three additional parks: Danforth Birchmount Parkette, Wards Island, and Rouge Park, finding three ticks in the latter. All tested negative. Table 2 (TABLE, EARLY TICKS) contains all results from the first two years of the program. 
+In 2013, TPH conducted the study in only one park, Algonquin Island, where they found a sole tick which tested negative to the bacterial test. In 2014, the agency collected samples in three additional parks: Danforth Birchmount Parkette, Wards Island, and Rouge Park, finding three ticks in the latter. All tested negative. Table \@ref(tab:tabletwo) contains all results from the first two years of the program. 
 
 
 
-```{r tabletwo, message=FALSE, warning=FALSE, echo=FALSE}
+```{r tabletwo, tab.cap="Results from the 2013 and 2014 blacklegged tick surveillance efforts.", message=FALSE, warning=FALSE, echo=FALSE}
 # Make a second table
 early_ticks_table <- expanded_data %>%
   filter(year < 2015) %>% 

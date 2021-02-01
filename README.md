@@ -15,7 +15,8 @@ Scripts:
 - Two scripts for generating graphs, one animated and two static.
 
 ## How to generate the paper
-1.  Open `outputs/paper/paper.Rmd` in RStudio
-2.  Install libraries using `install.packages()` if necessary
-3.  Run all code chunks
-4. The paper is generated to`outputs/paper/`
+1.  Open `blacklegged_tick_surveillance.Rproj` in RStudio
+2.  Open `outputs/paper/paper.Rmd` 
+3.  Install libraries using `install.packages()` if necessary
+4.  Run all code chunks
+5. The paper is generated to`outputs/paper/`
